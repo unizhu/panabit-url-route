@@ -5,26 +5,21 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('addBtn').addEventListener('click', addUrl);
 });
 
-// 1. Load URLs from storage and display them
 async function loadUrls() {
     const data = await chrome.storage.sync.get('panabitUrls');
     const urls = data.panabitUrls || [];
     renderList(urls);
 }
 
-// 2. Add a new URL
 async function addUrl() {
     const input = document.getElementById('urlInput');
     let rawUrl = input.value.trim();
 
     if (!rawUrl) return;
 
-    // Clean up input to make it a match pattern
-    // If user types "192.168.3.200", we make it "*://192.168.3.200/*"
     if (!rawUrl.includes('://')) {
         rawUrl = `*://${rawUrl}/*`;
     } else if (!rawUrl.endsWith('*')) {
-        // Ensure it ends with wildcard so it matches subpages
         rawUrl = rawUrl.endsWith('/') ? `${rawUrl}*` : `${rawUrl}/*`;
     }
 
@@ -41,19 +36,15 @@ async function addUrl() {
     input.value = '';
 }
 
-// 3. Remove a URL
 async function removeUrl(urlToRemove) {
     const data = await chrome.storage.sync.get('panabitUrls');
     let urls = data.panabitUrls || [];
-
     urls = urls.filter(u => u !== urlToRemove);
-
     await chrome.storage.sync.set({ panabitUrls: urls });
     await updateScriptRegistration(urls);
     renderList(urls);
 }
 
-// 4. Render the UI list
 function renderList(urls) {
     const container = document.getElementById('targetList');
     container.innerHTML = '';
@@ -72,35 +63,36 @@ function renderList(urls) {
     });
 }
 
-// 5. CORE LOGIC: Register the content script dynamically
+// CORE FIX IS HERE: allFrames: true
 async function updateScriptRegistration(urls) {
-    // If no URLs, we must unregister the script to stop it running anywhere
     if (urls.length === 0) {
         try {
             await chrome.scripting.unregisterContentScripts({ ids: [SCRIPT_ID] });
-        } catch (e) { /* ignore if not registered */ }
+        } catch (e) { /* ignore */ }
         return;
     }
 
-    // Try to update existing script first
     try {
+        // Try to update existing first
         await chrome.scripting.updateContentScripts([{
             id: SCRIPT_ID,
-            matches: urls
+            matches: urls,
+            allFrames: true // <--- IMPORTANT FIX
         }]);
-        console.log("Script updated with new URLs");
+        console.log("Script updated");
     } catch (err) {
-        // If update failed (likely because it doesn't exist yet), register it new
+        // If not exists, register new
         try {
             await chrome.scripting.registerContentScripts([{
                 id: SCRIPT_ID,
                 js: ['content.js'],
                 matches: urls,
-                runAt: 'document_end'
+                runAt: 'document_end',
+                allFrames: true // <--- IMPORTANT FIX
             }]);
-            console.log("Script registered successfully");
+            console.log("Script registered");
         } catch (regErr) {
-            console.error("Failed to register script:", regErr);
+            console.error("Registration failed:", regErr);
         }
     }
 }

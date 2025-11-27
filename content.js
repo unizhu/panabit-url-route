@@ -1,81 +1,88 @@
 /**
- * Panabit Deep Linker
- * Selector based on: .paui-menu-title > .paui-menu-title-desc
+ * Panabit Deep Linker (High-Latency & Capture Mode)
  */
 
 const MENU_ITEM_SELECTOR = '.paui-menu-title';
 const TEXT_SELECTOR = '.paui-menu-title-desc';
 
-// Helper: Convert menu text to a URL-friendly hash (e.g. "Flow Overview" -> "flow-overview")
 function toSlug(text) {
     if (!text) return '';
     return text.trim().replace(/\s+/g, '-').toLowerCase();
 }
 
-// 1. Logic to Attach Click Listeners
 function attachListeners() {
     const items = document.querySelectorAll(MENU_ITEM_SELECTOR);
 
     items.forEach(item => {
-        // Avoid double-attaching
+        // Prevent double-attachment
         if (item.dataset.hasDeepLink) return;
 
+        // VISUAL DEBUG: Add a tiny red border so you KNOW script is running
+        // item.style.borderLeft = "1px dashed blue";
+
         item.addEventListener('click', (e) => {
-            // Find the text description element inside the clicked button
             const descEl = item.querySelector(TEXT_SELECTOR);
             if (descEl) {
                 const slug = toSlug(descEl.innerText);
-                // Update URL bar without reloading
-                history.pushState(null, null, `#${slug}`);
+                console.log("[Panabit Linker] Clicked:", slug);
+                try {
+                    window.top.history.pushState(null, null, `#${slug}`);
+                } catch (err) {
+                    console.log("Cross-origin frame error:", err);
+                }
             }
-        });
+        }, true); // <--- The 'true' is the magic fix for UI frameworks
 
         item.dataset.hasDeepLink = "true";
     });
 }
 
-// 2. Logic to Restore State (Click the menu item matches the URL)
 function restoreState() {
-    const hash = window.location.hash.substring(1); // Remove '#'
+    let hash = '';
+    try {
+        hash = window.top.location.hash.substring(1);
+    } catch (e) { return; }
+
     if (!hash) return;
 
-    // We use a small interval because Panabit loads menus dynamically via JS
+    console.log("[Panabit Linker] Waiting for menu to appear...");
+
+    // FIX: Increased timeout to 30 seconds for high latency
+    let attempts = 0;
     const checkExist = setInterval(function () {
+        attempts++;
         const items = document.querySelectorAll(MENU_ITEM_SELECTOR);
 
         if (items.length > 0) {
-            let found = false;
             for (let item of items) {
                 const descEl = item.querySelector(TEXT_SELECTOR);
+                // Decode URI component handles Chinese characters in URL
                 if (descEl && toSlug(descEl.innerText) === decodeURIComponent(hash)) {
-
-                    // Found it! Check if we need to expand a parent first
-                    // (Optional: Add logic here if submenus are hidden)
-
                     console.log(`[Panabit Linker] Restoring view: ${hash}`);
                     item.click();
-                    found = true;
-                    clearInterval(checkExist); // Stop checking
-                    break;
+                    clearInterval(checkExist);
+                    return;
                 }
             }
-
-            // Stop checking after 10 seconds if nothing found to save memory
-            // setTimeout(() => clearInterval(checkExist), 10000); 
         }
-    }, 500); // Check every 500ms
+
+        // Stop after 30 seconds (approx 60 attempts)
+        if (attempts > 60) {
+            console.log("[Panabit Linker] Timed out waiting for menu.");
+            clearInterval(checkExist);
+        }
+    }, 500);
 }
 
-// 3. Initialize using MutationObserver
-// This is necessary because Panabit uses LayUI which renders elements after page load
+// Observe changes (LayUI renders dynamically)
 const observer = new MutationObserver((mutations) => {
     attachListeners();
 });
 
-// Start observing the document body for changes (when menu loads)
+// Start observing
 observer.observe(document.body, { childList: true, subtree: true });
 
-// Attempt restoration on initial load
+// Attempt restore
 window.addEventListener('load', restoreState);
-// Also try immediately in case DOM is already ready
+// Also try immediately just in case
 restoreState();

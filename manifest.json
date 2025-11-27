@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "Panabit Deep Linker (Pro)",
-    "version": "2.0",
+    "version": "2.1",
     "permissions": [
         "storage",
         "scripting"
@@ -10,24 +10,19 @@
         "<all_urls>"
     ],
     "action": {
-        "default_icon": {
-            "256": "./images/panabit256.png",
-            "128": "./images/panabit128.png",
-            "64": "./images/panabit64.png",
-            "32": "./images/panabit32.png",
-            "24": "./images/panabit24.png",
-            "16": "./images/panabit16.png"
-        },
+        "default_title": "Configure Panabit Monitor",
         "default_popup": "popup.html",
-        "default_title": "Configure Panabit Monitor"
+        "default_icon": {
+            "16": "images/panabit16.png",
+            "24": "images/panabit24.png",
+            "32": "images/panabit32.png"
+        }
     },
     "icons": {
-        "256": "./images/panabit256.png",
-        "128": "./images/panabit128.png",
-        "64": "./images/panabit64.png",
-        "32": "./images/panabit32.png",
-        "24": "./images/panabit24.png",
-        "16": "./images/panabit16.png"
+        "16": "images/panabit16.png",
+        "32": "images/panabit32.png",
+        "48": "images/panabit64.png",
+        "128": "images/panabit128.png"
     },
     "background": {
         "service_worker": "background.js"
